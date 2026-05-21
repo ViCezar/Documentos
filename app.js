@@ -2,10 +2,11 @@
   "use strict";
 
   var STORAGE_KEY = "rpg-class-ideas-v1";
-  var NODE_WIDTH = 220;
-  var NODE_HEIGHT = 92;
-  var H_GAP = 96;
-  var V_GAP = 44;
+  var NODE_WIDTH = 152;
+  var NODE_HEIGHT = 174;
+  var NODE_CIRCLE = 128;
+  var H_GAP = 124;
+  var V_GAP = 58;
   var PADDING = 34;
 
   var ATTRIBUTES = {
@@ -27,7 +28,8 @@
     classes: loadClasses(),
     currentAttribute: readAttributeFromHash(),
     selectedId: null,
-    formMode: null
+    formMode: null,
+    photoDrag: null
   };
 
   var dom = {
@@ -100,9 +102,25 @@
 
     dom.details.addEventListener("click", handleDetailsClick);
     dom.details.addEventListener("submit", handleFormSubmit);
+    dom.details.addEventListener("pointerdown", handlePhotoPointerDown);
+    window.addEventListener("pointermove", handlePhotoPointerMove);
+    window.addEventListener("pointerup", endPhotoDrag);
+    window.addEventListener("pointercancel", endPhotoDrag);
     dom.details.addEventListener("change", function (event) {
       if (event.target.matches("[name='primary']")) {
         refreshParentOptions(event.target.form);
+        updatePhotoPreview(event.target.form);
+      }
+      if (event.target.matches("[data-photo-input]")) {
+        handlePhotoFile(event.target);
+      }
+    });
+    dom.details.addEventListener("input", function (event) {
+      if (event.target.matches("[data-photo-scale]")) {
+        applyPhotoVars(event.target.form);
+      }
+      if (event.target.matches("[name='name']")) {
+        updatePhotoPreview(event.target.form);
       }
     });
 
@@ -150,15 +168,29 @@
       primary: primary,
       parentId: entry.parentId || "",
       lore: String(entry.lore || ""),
+      photo: normalizePhoto(entry.photo),
       stats: stats,
       uniqueAttributes: Array.isArray(entry.uniqueAttributes)
         ? entry.uniqueAttributes.map(normalizeNamedValue).filter(Boolean)
+        : [],
+      activeSkills: Array.isArray(entry.activeSkills)
+        ? entry.activeSkills.map(normalizePassive).filter(Boolean)
         : [],
       passives: Array.isArray(entry.passives)
         ? entry.passives.map(normalizePassive).filter(Boolean)
         : [],
       createdAt: entry.createdAt || new Date().toISOString(),
       updatedAt: entry.updatedAt || new Date().toISOString()
+    };
+  }
+
+  function normalizePhoto(entry) {
+    var photo = entry && typeof entry === "object" ? entry : {};
+    return {
+      src: String(photo.src || ""),
+      x: clampNumber(photo.x, -80, 80, 0),
+      y: clampNumber(photo.y, -80, 80, 0),
+      scale: clampNumber(photo.scale, 1, 3, 1)
     };
   }
 
@@ -195,7 +227,13 @@
   }
 
   function saveClasses() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.classes));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.classes));
+      return true;
+    } catch (error) {
+      showToast("N\u00e3o consegui salvar. A imagem pode estar muito pesada.");
+      return false;
+    }
   }
 
   function render() {
@@ -321,10 +359,11 @@
       }
       var parent = positions.get(entry.parentId);
       var child = positions.get(entry.id);
-      var x1 = parent.x + NODE_WIDTH;
-      var y1 = parent.y + NODE_HEIGHT / 2;
-      var x2 = child.x;
-      var y2 = child.y + NODE_HEIGHT / 2;
+      var circleOffset = (NODE_WIDTH - NODE_CIRCLE) / 2;
+      var x1 = parent.x + circleOffset + NODE_CIRCLE;
+      var y1 = parent.y + NODE_CIRCLE / 2;
+      var x2 = child.x + circleOffset;
+      var y2 = child.y + NODE_CIRCLE / 2;
       var mid = x1 + (x2 - x1) / 2;
       paths.push(
         '<path class="tree-line" d="M ' +
@@ -365,9 +404,6 @@
       return candidate.id === entry.parentId;
     });
     var parentLabel = parent ? "Evolui de " + parent.name : "Classe inicial";
-    var statsText = STAT_FIELDS.slice(0, 3).map(function (field) {
-      return field.short + " " + safeNumber(entry.stats[field.key]);
-    }).join("<span aria-hidden=\"true\">|</span>");
 
     return [
       '<button class="class-node ',
@@ -375,19 +411,16 @@
       entry.id === state.selectedId ? " selected" : "",
       '" type="button" data-class-id="',
       escapeHtml(entry.id),
+      '" title="',
+      escapeHtml(entry.name + " - " + parentLabel),
       '" style="left:',
       position.x,
       "px; top:",
       position.y,
       'px">',
-      '<span class="node-meta">',
-      escapeHtml(parentLabel),
-      "</span>",
+      renderPortrait(entry, "node-portrait"),
       '<span class="node-title">',
       escapeHtml(entry.name),
-      "</span>",
-      '<span class="node-stats">',
-      statsText,
       "</span>",
       "</button>"
     ].join("");
@@ -428,6 +461,8 @@
 
     return [
       '<div class="details-head">',
+      '<div class="details-main">',
+      renderPortrait(entry, "details-portrait"),
       "<div>",
       '<h2 class="details-title">',
       escapeHtml(entry.name),
@@ -442,6 +477,7 @@
       escapeHtml(parent ? "Evolui de " + parent.name : "Classe inicial"),
       "</span>",
       childrenCount ? '<span class="tag">' + childrenCount + (childrenCount > 1 ? " evolu\u00e7\u00f5es" : " evolu\u00e7\u00e3o") + "</span>" : "",
+      "</div>",
       "</div>",
       "</div>",
       '<div class="icon-actions">',
@@ -473,6 +509,10 @@
       '<section class="detail-section">',
       "<h3>Atributos \u00fanicos</h3>",
       renderNamedValueList(entry.uniqueAttributes, "Nenhum atributo \u00fanico cadastrado."),
+      "</section>",
+      '<section class="detail-section">',
+      "<h3>Habilidades ativas</h3>",
+      renderActiveSkillList(entry.activeSkills),
       "</section>",
       '<section class="detail-section">',
       "<h3>Passivas</h3>",
@@ -519,18 +559,115 @@
     ].join("");
   }
 
+  function renderActiveSkillList(items) {
+    if (!items.length) {
+      return '<p class="muted-text">Nenhuma habilidade ativa cadastrada.</p>';
+    }
+    return [
+      '<div class="list-stack">',
+      items.map(function (item) {
+        return [
+          '<div class="info-row"><strong>',
+          escapeHtml(item.name || "Habilidade"),
+          "</strong><span>",
+          escapeHtml(item.description || "-"),
+          "</span></div>"
+        ].join("");
+      }).join(""),
+      "</div>"
+    ].join("");
+  }
+
+  function renderPortrait(entry, className) {
+    var photo = normalizePhoto(entry.photo);
+    return [
+      '<span class="portrait-viewport ',
+      className || "",
+      " ",
+      entry.primary || "",
+      photo.src ? " has-photo" : "",
+      '">',
+      renderPortraitInner(photo, entry.name),
+      "</span>"
+    ].join("");
+  }
+
+  function renderPortraitInner(photo, name) {
+    var normalized = normalizePhoto(photo);
+    if (normalized.src) {
+      return [
+        '<img class="portrait-image" src="',
+        escapeHtml(normalized.src),
+        '" alt="" style="',
+        renderPhotoVars(normalized),
+        '">'
+      ].join("");
+    }
+
+    return [
+      '<span class="portrait-placeholder">',
+      escapeHtml(getInitials(name)),
+      "</span>"
+    ].join("");
+  }
+
+  function renderPhotoVars(photo) {
+    var normalized = normalizePhoto(photo);
+    return [
+      "--photo-x:",
+      normalized.x,
+      "%; --photo-y:",
+      normalized.y,
+      "%; --photo-scale:",
+      normalized.scale,
+      ";"
+    ].join("");
+  }
+
   function renderForm(entry, title) {
     var isEdit = Boolean(entry.id);
     var stats = entry.stats || {};
+    var photo = normalizePhoto(entry.photo);
 
     return [
       '<form class="class-form" id="classForm">',
       '<input type="hidden" name="id" value="',
       escapeHtml(entry.id || ""),
       '">',
+      '<input type="hidden" name="photoSrc" value="',
+      escapeHtml(photo.src),
+      '">',
+      '<input type="hidden" name="photoX" value="',
+      photo.x,
+      '">',
+      '<input type="hidden" name="photoY" value="',
+      photo.y,
+      '">',
       '<h2 class="form-title">',
       escapeHtml(title),
       "</h2>",
+      '<div class="form-section photo-section">',
+      '<div class="form-section-head"><h3>Foto</h3></div>',
+      '<div class="photo-editor">',
+      '<div class="photo-editor-frame portrait-viewport ',
+      entry.primary,
+      photo.src ? " has-photo" : "",
+      '" data-photo-frame title="Arraste para posicionar">',
+      renderPortraitInner(photo, entry.name),
+      "</div>",
+      '<div class="photo-controls">',
+      '<label class="secondary-action file-action">Adicionar foto',
+      '<input type="file" accept="image/*" data-photo-input>',
+      "</label>",
+      '<button class="mini-action" type="button" data-action="remove-photo">Remover foto</button>',
+      '<label class="field">Zoom',
+      '<input type="range" name="photoScale" data-photo-scale min="1" max="3" step="0.05" value="',
+      photo.scale,
+      '">',
+      "</label>",
+      "</div>",
+      "</div>",
+      "</div>",
       '<label class="field">Nome',
       '<input name="name" required maxlength="80" value="',
       escapeHtml(entry.name || ""),
@@ -579,6 +716,15 @@
       "</div>",
       '<div class="dynamic-list" id="uniqueList">',
       renderUniqueRows(entry.uniqueAttributes || []),
+      "</div>",
+      "</div>",
+      '<div class="form-section">',
+      '<div class="form-section-head">',
+      "<h3>Habilidades ativas</h3>",
+      '<button class="mini-action" type="button" data-action="add-active-skill">Adicionar</button>',
+      "</div>",
+      '<div class="dynamic-list" id="activeSkillList">',
+      renderActiveSkillRows(entry.activeSkills || []),
       "</div>",
       "</div>",
       '<div class="form-section">',
@@ -636,6 +782,29 @@
       escapeHtml(item.name || ""),
       '">',
       '<textarea data-passive-description placeholder="Descri\u00e7\u00e3o">',
+      escapeHtml(item.description || ""),
+      "</textarea>",
+      "</div>",
+      '<button class="icon-button danger-button" type="button" title="Remover" data-action="remove-row">X</button>',
+      "</div>"
+    ].join("");
+  }
+
+  function renderActiveSkillRows(items) {
+    if (!items.length) {
+      return renderActiveSkillRow({});
+    }
+    return items.map(renderActiveSkillRow).join("");
+  }
+
+  function renderActiveSkillRow(item) {
+    return [
+      '<div class="dynamic-row passive-row" data-active-skill-row>',
+      "<div>",
+      '<input data-active-skill-name placeholder="Nome da habilidade" value="',
+      escapeHtml(item.name || ""),
+      '">',
+      '<textarea data-active-skill-description placeholder="Descri\u00e7\u00e3o">',
       escapeHtml(item.description || ""),
       "</textarea>",
       "</div>",
@@ -715,11 +884,171 @@
       return;
     }
 
+    if (action === "add-active-skill") {
+      document.getElementById("activeSkillList").insertAdjacentHTML("beforeend", renderActiveSkillRow({}));
+      return;
+    }
+
+    if (action === "remove-photo") {
+      clearPhoto(actionElement.form);
+      return;
+    }
+
     if (action === "remove-row") {
       var row = actionElement.closest(".dynamic-row");
       if (row) {
         row.remove();
       }
+    }
+  }
+
+  function handlePhotoFile(input) {
+    var file = input.files && input.files[0];
+    if (!file) {
+      return;
+    }
+    if (!/^image\//.test(file.type)) {
+      showToast("Escolha um arquivo de imagem.");
+      input.value = "";
+      return;
+    }
+
+    readImageFile(file, function (dataUrl) {
+      var form = input.form;
+      if (!form) {
+        return;
+      }
+      form.elements.photoSrc.value = dataUrl;
+      form.elements.photoX.value = "0";
+      form.elements.photoY.value = "0";
+      form.elements.photoScale.value = "1";
+      updatePhotoPreview(form);
+      input.value = "";
+    });
+  }
+
+  function readImageFile(file, callback) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var dataUrl = String(reader.result || "");
+      var image = new Image();
+      image.onload = function () {
+        var maxSize = 900;
+        var ratio = Math.min(1, maxSize / image.width, maxSize / image.height);
+        if (ratio === 1 && file.size < 900000) {
+          callback(dataUrl);
+          return;
+        }
+
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * ratio));
+        canvas.height = Math.max(1, Math.round(image.height * ratio));
+        try {
+          var context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          callback(canvas.toDataURL("image/jpeg", 0.86));
+        } catch (error) {
+          callback(dataUrl);
+        }
+      };
+      image.onerror = function () {
+        callback(dataUrl);
+      };
+      image.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handlePhotoPointerDown(event) {
+    var frame = event.target.closest("[data-photo-frame]");
+    if (!frame || !frame.classList.contains("has-photo")) {
+      return;
+    }
+
+    var form = frame.closest("form");
+    if (!form || !form.elements.photoSrc.value) {
+      return;
+    }
+
+    var photo = readPhotoForm(form);
+    state.photoDrag = {
+      form: form,
+      frame: frame,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: photo.x,
+      startY: photo.y
+    };
+    frame.classList.add("is-dragging");
+    frame.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handlePhotoPointerMove(event) {
+    var drag = state.photoDrag;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    var rect = drag.frame.getBoundingClientRect();
+    var nextX = drag.startX + ((event.clientX - drag.startClientX) / rect.width) * 100;
+    var nextY = drag.startY + ((event.clientY - drag.startClientY) / rect.height) * 100;
+    drag.form.elements.photoX.value = String(clampNumber(nextX, -80, 80, 0));
+    drag.form.elements.photoY.value = String(clampNumber(nextY, -80, 80, 0));
+    applyPhotoVars(drag.form);
+  }
+
+  function endPhotoDrag(event) {
+    var drag = state.photoDrag;
+    if (!drag || event.pointerId !== drag.pointerId) {
+      return;
+    }
+
+    drag.frame.classList.remove("is-dragging");
+    if (drag.frame.hasPointerCapture && drag.frame.hasPointerCapture(event.pointerId)) {
+      drag.frame.releasePointerCapture(event.pointerId);
+    }
+    state.photoDrag = null;
+  }
+
+  function clearPhoto(form) {
+    if (!form) {
+      return;
+    }
+    form.elements.photoSrc.value = "";
+    form.elements.photoX.value = "0";
+    form.elements.photoY.value = "0";
+    form.elements.photoScale.value = "1";
+    updatePhotoPreview(form);
+  }
+
+  function updatePhotoPreview(form) {
+    if (!form) {
+      return;
+    }
+    var frame = form.querySelector("[data-photo-frame]");
+    if (!frame) {
+      return;
+    }
+
+    var photo = readPhotoForm(form);
+    var primary = form.elements.primary.value;
+    frame.classList.toggle("forca", primary === "forca");
+    frame.classList.toggle("inteligencia", primary === "inteligencia");
+    frame.classList.toggle("destreza", primary === "destreza");
+    frame.classList.toggle("has-photo", Boolean(photo.src));
+    frame.innerHTML = renderPortraitInner(photo, form.elements.name.value);
+    applyPhotoVars(form);
+  }
+
+  function applyPhotoVars(form) {
+    if (!form) {
+      return;
+    }
+    var image = form.querySelector("[data-photo-frame] .portrait-image");
+    if (image) {
+      image.setAttribute("style", renderPhotoVars(readPhotoForm(form)));
     }
   }
 
@@ -761,7 +1090,10 @@
     window.location.hash = data.primary;
     state.selectedId = data.id;
     state.formMode = null;
-    saveClasses();
+    if (!saveClasses()) {
+      render();
+      return;
+    }
     render();
     showToast("Classe salva.");
   }
@@ -779,10 +1111,21 @@
       primary: form.elements.primary.value,
       parentId: form.elements.parentId.value,
       lore: form.elements.lore.value.trim(),
+      photo: readPhotoForm(form),
       stats: stats,
       uniqueAttributes: readUniqueRows(form),
+      activeSkills: readActiveSkillRows(form),
       passives: readPassiveRows(form)
     };
+  }
+
+  function readPhotoForm(form) {
+    return normalizePhoto({
+      src: form.elements.photoSrc ? form.elements.photoSrc.value : "",
+      x: form.elements.photoX ? Number(form.elements.photoX.value) : 0,
+      y: form.elements.photoY ? Number(form.elements.photoY.value) : 0,
+      scale: form.elements.photoScale ? Number(form.elements.photoScale.value) : 1
+    });
   }
 
   function readUniqueRows(form) {
@@ -803,6 +1146,15 @@
     }).filter(Boolean);
   }
 
+  function readActiveSkillRows(form) {
+    return Array.prototype.slice.call(form.querySelectorAll("[data-active-skill-row]")).map(function (row) {
+      return normalizePassive({
+        name: row.querySelector("[data-active-skill-name]").value,
+        description: row.querySelector("[data-active-skill-description]").value
+      });
+    }).filter(Boolean);
+  }
+
   function openForm(partial, title) {
     var draft = Object.assign({
       id: "",
@@ -810,8 +1162,10 @@
       primary: state.currentAttribute,
       parentId: "",
       lore: "",
+      photo: {},
       stats: {},
       uniqueAttributes: [],
+      activeSkills: [],
       passives: []
     }, partial || {});
     var entry = normalizeClass(draft);
@@ -847,7 +1201,10 @@
     });
     state.selectedId = null;
     state.formMode = null;
-    saveClasses();
+    if (!saveClasses()) {
+      render();
+      return;
+    }
     render();
     showToast("Classe exclu\u00edda.");
   }
@@ -916,7 +1273,10 @@
         state.classes = classes.map(normalizeClass).filter(Boolean);
         state.selectedId = null;
         state.formMode = null;
-        saveClasses();
+        if (!saveClasses()) {
+          render();
+          return;
+        }
         render();
         showToast("Arquivo importado.");
       } catch (error) {
@@ -936,9 +1296,32 @@
     return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
   }
 
+  function getInitials(name) {
+    var parts = String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (!parts.length) {
+      return "?";
+    }
+
+    return parts.slice(0, 2).map(function (part) {
+      return part.charAt(0).toUpperCase();
+    }).join("");
+  }
+
   function safeNumber(value) {
     var number = Number(value);
     return Number.isFinite(number) ? number : 0;
+  }
+
+  function clampNumber(value, min, max, fallback) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, number));
   }
 
   function makeId() {

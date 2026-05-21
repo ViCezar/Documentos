@@ -38,7 +38,8 @@ textarea {
 }
 
 button,
-label.import-label {
+label.import-label,
+label.file-action {
   border: 0;
   border-radius: 8px;
 }
@@ -312,29 +313,34 @@ h1 {
 .class-node {
   position: absolute;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  width: 220px;
-  height: 92px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-left: 6px solid var(--node-accent);
+  grid-template-rows: 128px 32px;
+  justify-items: center;
+  gap: 6px;
+  width: 152px;
+  height: 174px;
+  padding: 0;
+  border: 0;
   border-radius: 8px;
-  background: #ffffff;
+  background: transparent;
   color: var(--ink);
-  box-shadow: 0 10px 30px rgba(30, 37, 51, 0.1);
-  text-align: left;
+  overflow: visible;
+  text-align: center;
 }
 
 .class-node:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 36px rgba(30, 37, 51, 0.14);
 }
 
-.class-node.selected {
-  outline: 3px solid rgba(32, 36, 43, 0.16);
+.class-node.selected .node-portrait {
+  box-shadow: 0 0 0 5px rgba(32, 36, 43, 0.14), 0 18px 38px rgba(30, 37, 51, 0.2);
 }
 
 .class-node.forca {
+  --node-accent: var(--forca);
+}
+
+.details-portrait.forca,
+.photo-editor-frame.forca {
   --node-accent: var(--forca);
 }
 
@@ -342,33 +348,75 @@ h1 {
   --node-accent: var(--inteligencia);
 }
 
+.details-portrait.inteligencia,
+.photo-editor-frame.inteligencia {
+  --node-accent: var(--inteligencia);
+}
+
 .class-node.destreza {
   --node-accent: var(--destreza);
 }
 
-.node-meta,
-.node-stats {
-  color: var(--muted);
-  font-size: 0.74rem;
-  line-height: 1.2;
+.details-portrait.destreza,
+.photo-editor-frame.destreza {
+  --node-accent: var(--destreza);
+}
+
+.portrait-viewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.85), transparent 34%),
+    #eef1f6;
+}
+
+.portrait-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transform: translate(calc(-50% + var(--photo-x, 0%)), calc(-50% + var(--photo-y, 0%))) scale(var(--photo-scale, 1));
+  transform-origin: center;
+  user-select: none;
+}
+
+.portrait-placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #3f4653;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.node-portrait {
+  width: 128px;
+  height: 128px;
+  border: 4px solid var(--node-accent);
+  border-radius: 50%;
+  box-shadow: 0 14px 34px rgba(30, 37, 51, 0.16);
 }
 
 .node-title {
-  align-self: center;
+  display: block;
+  max-width: 152px;
+  height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
   min-width: 0;
   overflow: hidden;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 800;
   line-height: 1.2;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.node-stats {
-  display: flex;
-  gap: 8px;
-  min-width: 0;
-  overflow: hidden;
   white-space: nowrap;
 }
 
@@ -385,6 +433,10 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
+}
+
+.empty-state[hidden] {
+  display: none;
 }
 
 .empty-state strong {
@@ -416,6 +468,26 @@ h1 {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.details-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.details-portrait {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  border: 4px solid var(--node-accent);
+  border-radius: 50%;
+  box-shadow: 0 12px 30px rgba(30, 37, 51, 0.14);
+}
+
+.details-portrait .portrait-placeholder {
+  font-size: 1.55rem;
 }
 
 .details-title {
@@ -622,6 +694,61 @@ h1 {
   text-transform: uppercase;
 }
 
+.photo-section {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.photo-editor {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.photo-editor-frame {
+  width: 170px;
+  height: 170px;
+  border: 4px solid var(--node-accent);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 14px 34px rgba(30, 37, 51, 0.14);
+  cursor: grab;
+  touch-action: none;
+}
+
+.photo-editor-frame:not(.has-photo) {
+  cursor: default;
+}
+
+.photo-editor-frame.is-dragging {
+  cursor: grabbing;
+}
+
+.photo-editor-frame .portrait-placeholder {
+  font-size: 2.25rem;
+}
+
+.photo-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.file-action {
+  position: relative;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.file-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .mini-action {
   min-height: 34px;
   padding: 0 10px;
@@ -762,8 +889,13 @@ h1 {
 
   .field-grid,
   .stats-grid,
-  .dynamic-row {
+  .dynamic-row,
+  .photo-editor {
     grid-template-columns: 1fr;
+  }
+
+  .photo-editor {
+    justify-items: center;
   }
 
   .dynamic-row.passive-row {
