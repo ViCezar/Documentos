@@ -332,11 +332,12 @@ h1 {
 }
 
 .class-node.selected .node-portrait {
-  box-shadow: 0 0 0 5px rgba(32, 36, 43, 0.14), 0 18px 38px rgba(30, 37, 51, 0.2);
+  box-shadow: 0 0 0 5px rgba(32, 36, 43, 0.14), 0 0 30px var(--node-glow), 0 18px 38px rgba(30, 37, 51, 0.2);
 }
 
 .class-node.forca {
   --node-accent: var(--forca);
+  --node-glow: rgba(217, 72, 72, 0.32);
 }
 
 .details-portrait.forca,
@@ -346,6 +347,7 @@ h1 {
 
 .class-node.inteligencia {
   --node-accent: var(--inteligencia);
+  --node-glow: rgba(77, 104, 216, 0.32);
 }
 
 .details-portrait.inteligencia,
@@ -355,11 +357,42 @@ h1 {
 
 .class-node.destreza {
   --node-accent: var(--destreza);
+  --node-glow: rgba(15, 159, 140, 0.32);
 }
 
 .details-portrait.destreza,
 .photo-editor-frame.destreza {
   --node-accent: var(--destreza);
+}
+
+.class-node.rarity-inicial {
+  --node-accent: #8b5e3c;
+  --node-glow: rgba(139, 94, 60, 0.42);
+}
+
+.class-node.rarity-comum {
+  --node-accent: #25a55b;
+  --node-glow: rgba(37, 165, 91, 0.44);
+}
+
+.class-node.rarity-incomum {
+  --node-accent: #2f7de1;
+  --node-glow: rgba(47, 125, 225, 0.45);
+}
+
+.class-node.rarity-rara {
+  --node-accent: #8f4dd8;
+  --node-glow: rgba(143, 77, 216, 0.48);
+}
+
+.class-node.rarity-unico {
+  --node-accent: #ffffff;
+  --node-glow: rgba(255, 255, 255, 0.92);
+}
+
+.class-node.rarity-lendaria {
+  --node-accent: #d8a526;
+  --node-glow: rgba(216, 165, 38, 0.62);
 }
 
 .portrait-viewport {
@@ -400,7 +433,15 @@ h1 {
   height: 128px;
   border: 4px solid var(--node-accent);
   border-radius: 50%;
-  box-shadow: 0 14px 34px rgba(30, 37, 51, 0.16);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 22px var(--node-glow), 0 14px 34px rgba(30, 37, 51, 0.16);
+}
+
+.class-node.rarity-unico .node-portrait {
+  box-shadow: 0 0 0 1px #cfd6e2, 0 0 26px var(--node-glow), 0 14px 34px rgba(30, 37, 51, 0.16);
+}
+
+.class-node.rarity-unico.selected .node-portrait {
+  box-shadow: 0 0 0 5px rgba(32, 36, 43, 0.14), 0 0 34px var(--node-glow), 0 18px 38px rgba(30, 37, 51, 0.2);
 }
 
 .node-title {
@@ -528,6 +569,37 @@ h1 {
 .tag.destreza {
   background: rgba(15, 159, 140, 0.14);
   color: #087767;
+}
+
+.tag.rarity-inicial {
+  background: rgba(139, 94, 60, 0.14);
+  color: #704425;
+}
+
+.tag.rarity-comum {
+  background: rgba(37, 165, 91, 0.14);
+  color: #13743c;
+}
+
+.tag.rarity-incomum {
+  background: rgba(47, 125, 225, 0.14);
+  color: #245aa5;
+}
+
+.tag.rarity-rara {
+  background: rgba(143, 77, 216, 0.15);
+  color: #6d35ad;
+}
+
+.tag.rarity-unico {
+  background: #f7f8fb;
+  color: #3f4653;
+  box-shadow: inset 0 0 0 1px #d9dee7;
+}
+
+.tag.rarity-lendaria {
+  background: rgba(216, 165, 38, 0.17);
+  color: #89610b;
 }
 
 .icon-actions {

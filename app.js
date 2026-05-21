@@ -15,6 +15,15 @@
     destreza: { label: "Destreza", className: "destreza" }
   };
 
+  var RARITIES = {
+    inicial: { label: "Inicial" },
+    comum: { label: "Comum" },
+    incomum: { label: "Incomum" },
+    rara: { label: "Rara" },
+    unico: { label: "\u00danico" },
+    lendaria: { label: "Lend\u00e1ria" }
+  };
+
   var STAT_FIELDS = [
     { key: "forca", label: "For\u00e7a", short: "FOR" },
     { key: "inteligencia", label: "Intelig\u00eancia", short: "INT" },
@@ -156,6 +165,7 @@
     }
 
     var primary = ATTRIBUTES[entry.primary] ? entry.primary : "forca";
+    var rarity = RARITIES[entry.rarity] ? entry.rarity : "inicial";
     var stats = {};
     STAT_FIELDS.forEach(function (field) {
       var value = Number(entry.stats && entry.stats[field.key]);
@@ -166,6 +176,7 @@
       id: entry.id || makeId(),
       name: String(entry.name || "Classe sem nome").trim(),
       primary: primary,
+      rarity: rarity,
       parentId: entry.parentId || "",
       lore: String(entry.lore || ""),
       photo: normalizePhoto(entry.photo),
@@ -408,11 +419,13 @@
     return [
       '<button class="class-node ',
       entry.primary,
+      " rarity-",
+      entry.rarity,
       entry.id === state.selectedId ? " selected" : "",
       '" type="button" data-class-id="',
       escapeHtml(entry.id),
       '" title="',
-      escapeHtml(entry.name + " - " + parentLabel),
+      escapeHtml(entry.name + " - " + parentLabel + " - " + RARITIES[entry.rarity].label),
       '" style="left:',
       position.x,
       "px; top:",
@@ -472,6 +485,11 @@
       entry.primary,
       '">',
       escapeHtml(ATTRIBUTES[entry.primary].label),
+      "</span>",
+      '<span class="tag rarity-',
+      entry.rarity,
+      '">',
+      escapeHtml(RARITIES[entry.rarity].label),
       "</span>",
       '<span class="tag">',
       escapeHtml(parent ? "Evolui de " + parent.name : "Classe inicial"),
@@ -678,6 +696,13 @@
       '<select name="primary">',
       Object.keys(ATTRIBUTES).map(function (key) {
         return '<option value="' + key + '"' + (key === entry.primary ? " selected" : "") + ">" + escapeHtml(ATTRIBUTES[key].label) + "</option>";
+      }).join(""),
+      "</select>",
+      "</label>",
+      '<label class="field">Raridade',
+      '<select name="rarity">',
+      Object.keys(RARITIES).map(function (key) {
+        return '<option value="' + key + '"' + (key === entry.rarity ? " selected" : "") + ">" + escapeHtml(RARITIES[key].label) + "</option>";
       }).join(""),
       "</select>",
       "</label>",
@@ -1109,6 +1134,7 @@
       id: form.elements.id.value,
       name: form.elements.name.value.trim(),
       primary: form.elements.primary.value,
+      rarity: form.elements.rarity.value,
       parentId: form.elements.parentId.value,
       lore: form.elements.lore.value.trim(),
       photo: readPhotoForm(form),
@@ -1160,6 +1186,7 @@
       id: "",
       name: "",
       primary: state.currentAttribute,
+      rarity: "inicial",
       parentId: "",
       lore: "",
       photo: {},
