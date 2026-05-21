@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RPG Classes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navega&ccedil;&atilde;o principal">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">R</div>
+        <div>
+          <strong>RPG Classes</strong>
+          <span>Arquivo local</span>
+        </div>
+      </div>
+
+      <nav class="attribute-nav" aria-label="Atributos prim&aacute;rios">
+        <button class="nav-item" type="button" data-attribute="forca">
+          <span>For&ccedil;a</span>
+          <small data-count="forca">0</small>
+        </button>
+        <button class="nav-item" type="button" data-attribute="inteligencia">
+          <span>Intelig&ecirc;ncia</span>
+          <small data-count="inteligencia">0</small>
+        </button>
+        <button class="nav-item" type="button" data-attribute="destreza">
+          <span>Destreza</span>
+          <small data-count="destreza">0</small>
+        </button>
+      </nav>
+
+      <div class="sidebar-actions">
+        <button class="primary-action" type="button" id="quickAddBtn">Nova classe</button>
+        <button class="ghost-action" type="button" id="exportBtn">Exportar</button>
+        <label class="ghost-action import-label" for="importFile">
+          Importar
+          <input id="importFile" type="file" accept="application/json,.json">
+        </label>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">&Aacute;rvore de evolu&ccedil;&atilde;o</p>
+          <h1 id="viewTitle">For&ccedil;a</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="secondary-action" type="button" id="newRootBtn">Classe inicial</button>
+          <button class="primary-action" type="button" id="newEvolutionBtn" disabled>Nova evolu&ccedil;&atilde;o</button>
+        </div>
+      </header>
+
+      <div class="workspace-grid">
+        <section class="tree-surface" aria-label="&Aacute;rvore de classes">
+          <div class="tree-scroll">
+            <div class="tree-canvas" id="treeCanvas">
+              <svg class="tree-lines" id="treeLines" aria-hidden="true"></svg>
+              <div class="tree-nodes" id="treeNodes"></div>
+              <div class="empty-state" id="emptyState" hidden>
+                <strong>Nenhuma classe aqui ainda.</strong>
+                <button class="primary-action" type="button" data-action="new-root">Criar classe inicial</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="details-panel" id="detailsPanel" aria-live="polite"></aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
